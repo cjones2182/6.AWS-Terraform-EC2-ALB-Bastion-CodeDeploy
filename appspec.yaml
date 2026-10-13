@@ -1,0 +1,7 @@
+version: 0.0
+os: linux
+
+hooks:
+AfterInstall:
+  - Location: scripts/install.sh
+    Timeout: 900  
