@@ -10,7 +10,7 @@ resource "aws_vpc" "main" {
 resource "aws_subnet" "PublicSubnet1" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.10.0/24"
-  availability_zone = "us-east-1a"
+  availability_zone       = "us-east-1a"
   map_public_ip_on_launch = true
 
   tags = {
@@ -19,9 +19,9 @@ resource "aws_subnet" "PublicSubnet1" {
 }
 
 resource "aws_subnet" "PublicSubnet2" {
-  vpc_id     = aws_vpc.main.id
+  vpc_id            = aws_vpc.main.id
   availability_zone = "us-east-1b"
-  cidr_block = "10.0.20.0/24"
+  cidr_block        = "10.0.20.0/24"
 
   tags = {
     Name = "PublicSubnet2"
@@ -210,9 +210,9 @@ resource "aws_instance" "app_instance" {
     sudo ./install auto
     systemctl enable --now codedeploy-agent
     EOF
-    tags = {
-      Name = "app-instance"
-    }
+  tags = {
+    Name = "app-instance"
+  }
 }
 # ec2 instance profile
 resource "aws_iam_role" "ec2_ssm_role" {
@@ -307,7 +307,7 @@ resource "aws_lb_listener" "alb_listener" {
 #codebuild 
 
 resource "aws_iam_role" "codebuild_role" {
-    assume_role_policy = jsonencode({
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -326,16 +326,33 @@ resource "aws_iam_role" "codebuild_role" {
 }
 
 resource "aws_iam_role_policy" "codebuild_policy" {
-    role = aws_iam_role.codebuild_role.id
-    policy = jsonencode({
-        Version = "2012-10-17"
-        Statement = [{
-                Effect = "Allow"
-                Action =  "*"
-                Resource = "*"
-            }]
-    })
+  role = aws_iam_role.codebuild_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "*"
+      Resource = "*"
+    }]
+  })
 }
+#code deploy
+resource "aws_codebuild_project" "codebuild_project" {
+  name         = "codebuild-project"
+  service_role = aws_iam_role.codebuild_role.name
 
+  artifacts {
+    type = "NO_ARTIFACTS"
+  }
+  source {
+    type     = "GITHUB"
+    location = "https://github.com/cjones2182/6.AWS-Terraform-EC2-ALB-Bastion-CodeDeploy"
+  }
+  environment {
+    compute_type = "BUILD_GENERAL1_SMALL"
+    type         = "LINUX_CONTAINER"
+    image        = "aws_codebuild/standard:7.0"
+  }
+}
 
 

@@ -1,0 +1,11 @@
+pre_build:
+  commands:
+    - terraform init -input=false
+    - terraform validate
+    - echo "terraform intialized and validated"
+
+build:
+  commands:
+    - terraform plan -input=false -out=tfplan
+    - terraform apply tfplan
+    - echo "tfplan applied"
