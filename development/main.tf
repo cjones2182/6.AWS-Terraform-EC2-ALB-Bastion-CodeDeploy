@@ -146,7 +146,7 @@ resource "aws_vpc_security_group_ingress_rule" "bastion_ingress" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "bastion_egress" {
-  security_group_id = aws_security_group.ALB_Security_Group.id
+  security_group_id = aws_security_group.Bastion_Security_Group.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "tcp"
   from_port         = 22
@@ -169,7 +169,7 @@ resource "aws_vpc_security_group_ingress_rule" "ec2_ssh_ingress" {
 }
 resource "aws_vpc_security_group_ingress_rule" "ec2_http" {
   security_group_id            = aws_security_group.ec2_ssh.id
-  referenced_security_group_id = aws_security_group.Bastion_Security_Group.id
+  referenced_security_group_id = aws_security_group.ALB_Security_Group.id
   ip_protocol                  = "tcp"
   from_port                    = 80
   to_port                      = 80
@@ -181,6 +181,13 @@ resource "aws_vpc_security_group_egress_rule" "ec2_ssh_egress" {
   from_port                    = 22
   to_port                      = 22
 }
+resource "aws_vpc_security_group_egress_rule" "ec2_http_egress" {
+  security_group_id = aws_security_group.ec2_ssh.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+
 
 #instance
 
@@ -195,8 +202,11 @@ data "aws_ami" "amazon_linux" {
 }
 #ec2 instance
 resource "aws_instance" "app_instance" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t3.micro"
+  ami                  = data.aws_ami.amazon_linux.id
+  instance_type        = "t3.micro"
+  key_name             = aws_key_pair.bastion.key_name
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
+
   subnet_id              = aws_subnet.PrivateSubnet.id
   vpc_security_group_ids = [aws_security_group.ec2_ssh.id]
   user_data              = <<-EOF
@@ -204,7 +214,7 @@ resource "aws_instance" "app_instance" {
     dnf update -y
     dnf install wget -y
     dnf install ruby -y
-    wget https://bucket-name.s3.region-identifier.amazonaws.com/latestv2/install
+    wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latestv2/install
     sleep 20
     chmod +x ./install
     sudo ./install auto
@@ -237,6 +247,11 @@ resource "aws_iam_role" "ec2_ssm_role" {
 resource "aws_iam_role_policy_attachment" "ec2_ssm_attach" {
   role       = aws_iam_role.ec2_ssm_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "ec2-profile"
+  role = aws_iam_role.ec2_ssm_role.name
 }
 
 #bastion instance
@@ -355,4 +370,21 @@ resource "aws_codebuild_project" "codebuild_project" {
   }
 }
 
+resource "aws_iam_role" "codedeploy_role" {
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = "sts:AssumeRole"
+      Principal = {
+        Service = "codedeploy.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "codedeploy_attach" {
+  role       = aws_iam_role.codedeploy_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+}
 
