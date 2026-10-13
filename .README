@@ -1,0 +1,10 @@
+This project uses an Application Load Balancer (ALB), a private EC2 instance, and a bastion instance to deploy MediaWiki as an application. The bastion instance is the only way to access the app instance through SSH, while the ALB provides public access to MediaWiki.
+
+The security groups are not as restrictive because this is a home lab, and I cannot assign a fixed public IP address range.
+
+CodeBuild will be used to provision the environment using Terraform. User data installs the CodeDeploy agent on the private EC2 instance, and CodeDeploy runs the `install.sh script to install and host MediaWiki.
+
+CodeBuild has the permissions needed to create the AWS resources, although these permissions could have been more restrictive. CodeDeploy uses an AWS-managed IAM policy. The EC2 instance has the AmazonSSMManagedInstanceCore policy, which allows it to connect to AWS Systems Manager for remote management and troubleshooting without requiring SSH access.
+
+Some mistakes have been made and i will progressively get much better.
+
